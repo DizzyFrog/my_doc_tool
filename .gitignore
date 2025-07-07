@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 logs
-data
+# 忽略 data 文件夹内容
+data/*
+# 但保留这个空文件
+!data/.keep
 .DS_Store
 dist
