@@ -1,0 +1,84 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # 只有推送 tag 时才触发
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller app.py \
+            --name=MyTool \
+            --windowed \
+            --icon=favo.icns \
+            --add-data "favo.png:." \
+            --add-data ".env:." \
+            --add-data "data:data"
+
+      - name: Zip build
+        run: |
+          cd dist
+          zip -r MyTool-mac.zip MyTool.app
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/MyTool-mac.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller app.py ^
+            --name=MyTool ^
+            --windowed ^
+            --add-data "favo.png;." ^
+            --add-data ".env;." ^
+            --add-data "data;data"
+
+      - name: Zip build
+        run: Compress-Archive -Path dist/MyTool.exe -DestinationPath dist/MyTool-win.zip
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/MyTool-win.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
