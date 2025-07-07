@@ -1,4 +1,8 @@
 # app.py
+import multiprocessing
+multiprocessing.freeze_support()
+from resource_util import resource_path
+
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -14,8 +18,10 @@ import shutil
 from dotenv import load_dotenv, set_key
 from backend.excel_utils import excel_utils
 
-load_dotenv('.env',override=True)
+# load_dotenv('.env',override=True)
+load_dotenv(resource_path('.env'), override=True)
 from mylog.log import logger
+from dotenv import dotenv_values
 
 class QTextEditLogHandler(QObject):
     log_signal = pyqtSignal(str)
@@ -39,7 +45,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("结构化文档批处理工具")
-        self.setWindowIcon(QIcon("favo.png"))
+        # self.setWindowIcon(QIcon("favo.png"))
+        self.setWindowIcon(QIcon(resource_path("favo.png")))
         self.resize(900, 600)
         self.init_ui()
 
@@ -128,8 +135,10 @@ class MainWindow(QMainWindow):
     def upload_excel(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "选择Excel文件", "", "Excel Files (*.xlsx *.xls)")
         if file_path:
-            os.makedirs('data/input', exist_ok=True)
-            new_path = os.path.join('data', 'input', 'input.xlsx')
+            # os.makedirs('data/input', exist_ok=True)
+            # new_path = os.path.join('data', 'input', 'input.xlsx')
+            os.makedirs(resource_path('data/input'), exist_ok=True)
+            new_path = resource_path(os.path.join('data', 'input', 'input.xlsx'))
             shutil.copy(file_path, new_path)
             sheets = excel_utils.get_excel_sheets()
             if not sheets:
@@ -143,7 +152,8 @@ class MainWindow(QMainWindow):
                 logger.info(f"已选择Sheet: {sheet_name}，并保存到.env")
 
     def save_sheet_to_env(self, sheet_name):
-        set_key('.env', 'SHEET_NAME', sheet_name)
+        # set_key('.env', 'SHEET_NAME', sheet_name)
+        set_key(resource_path('.env'), 'SHEET_NAME', sheet_name)
 
 class SettingsDialog(QDialog):
     def __init__(self, parent=None):
@@ -169,14 +179,16 @@ class SettingsDialog(QDialog):
         self.load_env()
 
     def load_env(self):
-        self.baseurl_input.setText(os.getenv('BASEURL', ''))
-        self.apikey_input.setText(os.getenv('APIKEY', ''))
-        self.model_input.setText(os.getenv('MODEL_NAME', ''))
+        env_path = resource_path('.env')
+        env_vars = dotenv_values(env_path)
+        self.baseurl_input.setText(env_vars.get('BASEURL', ''))
+        self.apikey_input.setText(env_vars.get('APIKEY', ''))
+        self.model_input.setText(env_vars.get('MODEL_NAME', ''))
 
     def save_env(self):
-        set_key('.env', 'BASEURL', self.baseurl_input.text().strip())
-        set_key('.env', 'APIKEY', self.apikey_input.text().strip())
-        set_key('.env', 'MODEL_NAME', self.model_input.text().strip())
+        set_key(resource_path('.env'), 'BASEURL', self.baseurl_input.text().strip())
+        set_key(resource_path('.env'), 'APIKEY', self.apikey_input.text().strip())
+        set_key(resource_path('.env'), 'MODEL_NAME', self.model_input.text().strip())
         QMessageBox.information(self, "保存成功", ".env 配置已保存！")
         
         self.accept()
@@ -201,6 +213,8 @@ class SheetSelectDialog(QDialog):
         super().accept()
 
 if __name__ == "__main__":
+     # Pyinstaller fix
+    
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

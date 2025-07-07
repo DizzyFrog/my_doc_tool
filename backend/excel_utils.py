@@ -5,20 +5,19 @@ import os
 from dotenv import load_dotenv
 from mylog.log import logger
 from pathlib import Path
+from resource_util import resource_path
 
-load_dotenv('.env',override=True)
+load_dotenv(resource_path('.env'),override=True)
 
 class ExcelUtils:
 
     def __init__(self):
         self.sheet_name = os.getenv('SHEET_NAME')
-      
-        self.file_path = os.getenv('FILE_PATH')
-       
+        self.file_path = resource_path(os.getenv('FILE_PATH')) if os.getenv('FILE_PATH') else None
         self.df = None
         # json path = data/output/output.json
         self.columns = ['功能用户需求', '触发事件', '功能过程', '子过程描述', '数据组', '功能用户', '角色']
-        self.output_json_path = os.path.join('data', 'output', 'output.json')
+        self.output_json_path = resource_path(os.path.join('data', 'output', 'output.json'))
 
 
     def get_excel_sheets(self):
