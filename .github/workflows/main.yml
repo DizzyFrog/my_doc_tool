@@ -1,0 +1,88 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'   # 仅当推送 v 开头的 tag 时触发（如 v1.0.0）
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Create virtual environment
+        run: uv venv .venv
+
+      - name: Activate venv, install deps, and build
+        run: |
+          source .venv/bin/activate
+          uv sync
+          pyinstaller app.py \
+            --name=MyTool \
+            --windowed \
+            --icon=favo.icns \
+            --add-data "favo.png:." \
+            --add-data ".env:." \
+            --add-data "data:data"
+
+      - name: Create .dmg from .app
+        run: |
+          hdiutil create dist/MyTool.dmg \
+            -volname "MyTool Installer" \
+            -srcfolder dist/MyTool.app \
+            -ov -format UDZO
+
+      - name: Upload .dmg to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/MyTool.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Create virtual environment
+        run: uv venv .venv
+
+      - name: Activate venv, install deps, and build
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\Activate.ps1
+          uv sync
+          pyinstaller app.py `
+            --name=MyTool `
+            --windowed `
+            --add-data "favo.png;." `
+            --add-data ".env;." `
+            --add-data "data;data"
+
+      - name: Upload .exe to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/MyTool.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
