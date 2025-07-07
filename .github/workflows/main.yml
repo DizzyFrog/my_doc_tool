@@ -12,13 +12,22 @@ jobs:
       dmg-name: ${{ steps.upload.outputs.artifact-name }}
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-      - run: pip install uv
-      - run: uv venv .venv
-      - run: |
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Create virtual environment
+        run: uv venv .venv
+
+      - name: Install deps & build app
+        run: |
           source .venv/bin/activate
           uv sync
           pyinstaller app.py \
@@ -28,11 +37,30 @@ jobs:
             --add-data "favo.png:." \
             --add-data ".env:." \
             --add-data "data:data"
-      - run: |
-          hdiutil create dist/MyTool.dmg \
-            -volname "MyTool Installer" \
-            -srcfolder dist/MyTool.app \
-            -ov -format UDZO
+
+      - name: Sign and prepare app for dmg
+        run: |
+          APP_PATH="dist/MyTool.app"
+          xattr -cr "$APP_PATH"
+          codesign --deep --force --sign - "$APP_PATH"
+
+      - name: Build .dmg with Applications symlink
+        run: |
+          APP_NAME="MyTool"
+          APP_PATH="dist/${APP_NAME}.app"
+          DMG_NAME="${APP_NAME}.dmg"
+          STAGE="dmg-root"
+
+          rm -rf "$STAGE" "$DMG_NAME"
+          mkdir -p "$STAGE"
+          cp -R "$APP_PATH" "$STAGE/"
+          ln -s /Applications "$STAGE/Applications"
+
+          hdiutil create "dist/$DMG_NAME" \
+            -volname "${APP_NAME} Installer" \
+            -srcfolder "$STAGE" \
+            -fs HFS+ \
+            -format UDZO
 
       - name: Upload mac artifact
         uses: actions/upload-artifact@v4
@@ -45,13 +73,22 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-      - run: pip install uv
-      - run: uv venv .venv
-      - shell: pwsh
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Create virtual environment
+        run: uv venv .venv
+
+      - name: Install deps & build app
+        shell: pwsh
         run: |
           .\.venv\Scripts\Activate.ps1
           uv sync
