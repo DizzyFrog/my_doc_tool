@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QMenuBar, QMenu, QMessageBox, QSplitter, QDialog, QFormLayout, QComboBox
 )
 from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QObject, pyqtSignal
 from backend.mermaid_utils import is_mermaid_installed
 import os
 import pandas as pd
@@ -16,6 +16,24 @@ from backend.excel_utils import excel_utils
 
 load_dotenv('.env',override=True)
 from mylog.log import logger
+
+class QTextEditLogHandler(QObject):
+    log_signal = pyqtSignal(str)
+
+    def __init__(self, text_edit):
+        super().__init__()
+        self.text_edit = text_edit
+        self.log_signal.connect(self.append_log)
+
+    def append_log(self, msg):
+        self.text_edit.append(msg)
+
+    def write(self, message):
+        if message.strip():
+            self.log_signal.emit(message.strip())
+
+    def flush(self):
+        pass
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -78,6 +96,9 @@ class MainWindow(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         right_layout.addWidget(self.log_text)
+        # 集成loguru日志到log_text
+        self.qtextedit_log_handler = QTextEditLogHandler(self.log_text)
+        logger.add(self.qtextedit_log_handler, format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}", level="INFO")
 
         self.export_btn = QPushButton("导出 docx 文件")
         right_layout.addWidget(self.export_btn)
