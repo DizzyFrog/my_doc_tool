@@ -3,27 +3,31 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*'   # 仅当推送 v 开头的 tag 时触发（如 v1.0.0）
 
 jobs:
   build-macos:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
 
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies
-        run: uv sync
+      - name: Create virtual environment
+        run: uv venv .venv
 
-      - name: Build macOS .app with PyInstaller
+      - name: Activate venv, install deps, and build
         run: |
+          source .venv/bin/activate
+          uv sync
           pyinstaller app.py \
             --name=MyTool \
             --windowed \
@@ -32,7 +36,7 @@ jobs:
             --add-data ".env:." \
             --add-data "data:data"
 
-      - name: Create DMG from .app
+      - name: Create .dmg from .app
         run: |
           hdiutil create dist/MyTool.dmg \
             -volname "MyTool Installer" \
@@ -50,25 +54,30 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.13'
 
       - name: Install uv
         run: pip install uv
 
-      - name: Install dependencies
-        run: uv sync
+      - name: Create virtual environment
+        run: uv venv .venv
 
-      - name: Build Windows .exe with PyInstaller
+      - name: Activate venv, install deps, and build
+        shell: pwsh
         run: |
-          pyinstaller app.py ^
-            --name=MyTool ^
-            --windowed ^
-            --add-data "favo.png;." ^
-            --add-data ".env;." ^
+          .\.venv\Scripts\Activate.ps1
+          uv sync
+          pyinstaller app.py `
+            --name=MyTool `
+            --windowed `
+            --add-data "favo.png;." `
+            --add-data ".env;." `
             --add-data "data;data"
 
       - name: Upload .exe to GitHub Release
