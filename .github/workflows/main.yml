@@ -3,29 +3,22 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'   # 仅当推送 v 开头的 tag 时触发（如 v1.0.0）
+      - 'v*'
 
 jobs:
   build-macos:
     runs-on: macos-latest
+    outputs:
+      dmg-name: ${{ steps.upload.outputs.artifact-name }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Create virtual environment
-        run: uv venv .venv
-
-      - name: Activate venv, install deps, and build
-        run: |
+      - run: pip install uv
+      - run: uv venv .venv
+      - run: |
           source .venv/bin/activate
           uv sync
           pyinstaller app.py \
@@ -35,41 +28,30 @@ jobs:
             --add-data "favo.png:." \
             --add-data ".env:." \
             --add-data "data:data"
-
-      - name: Create .dmg from .app
-        run: |
+      - run: |
           hdiutil create dist/MyTool.dmg \
             -volname "MyTool Installer" \
             -srcfolder dist/MyTool.app \
             -ov -format UDZO
 
-      - name: Upload .dmg to GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload mac artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: dist/MyTool.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: MyTool-mac
+          path: dist/MyTool.dmg
+        id: upload
 
   build-windows:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.13'
-
-      - name: Install uv
-        run: pip install uv
-
-      - name: Create virtual environment
-        run: uv venv .venv
-
-      - name: Activate venv, install deps, and build
-        shell: pwsh
+      - run: pip install uv
+      - run: uv venv .venv
+      - shell: pwsh
         run: |
           .\.venv\Scripts\Activate.ps1
           uv sync
@@ -80,9 +62,34 @@ jobs:
             --add-data ".env;." `
             --add-data "data;data"
 
-      - name: Upload .exe to GitHub Release
+      - name: Upload windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyTool-win
+          path: dist/MyTool.exe
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build-macos, build-windows]
+
+    steps:
+      - name: Download mac artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: MyTool-mac
+          path: release-assets
+
+      - name: Download win artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: MyTool-win
+          path: release-assets
+
+      - name: Upload release files
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/MyTool.exe
+          files: |
+            release-assets/MyTool.dmg
+            release-assets/MyTool.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
